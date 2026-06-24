@@ -35,11 +35,7 @@ paths:
         
         ## Customer Identifier
 
-        The URL for this endpoint includes an identifier which is specific to one customer, and the authenticated user must be authorised for that customer to make this request.
-
-
-        This identifier will be provided during setup, or can be found 
-        `TODO : Where should API users get user info from?`
+        The URL for this endpoint includes an identifier which is specific to one customer, and the authenticated user must be authorised for that customer to make this request.  This identifier will be provided during authentication setup.
 
         ## eAdaptor Next Support
         
