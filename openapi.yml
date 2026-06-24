@@ -4,11 +4,13 @@ info:
   description: |
     API endpoints supplied by AOS for getting detailed Port Logistics information.  
 
-    URLs, credentials and other information can be requested from aoshelpdesk@arrowtransport.com.au for approved account customers.
+    URLs, credentials and authentication information can be requested from aoshelpdesk@arrowtransport.com.au for approved account customers.
     
     Rate limits apply on a per-account basis of 30 requests per minute across all endpoints.
   version: v0.9
 tags:
+  - name: EDI / Integration
+    description: Integrate AOS with external services
   - name: Container Information
     description: Retrieve information about containers (location, status)
   - name: Container Scheduling
@@ -16,6 +18,121 @@ tags:
   - name: Billing & Pricing
     description: Calculate transport rates and pricing estimates
 paths:
+  /order/edi/cargowise/{customerId}:
+    post:
+      tags: [ EDI / Integration ]
+      summary: Import Cargowise Universal Shipment
+      description: >
+        ## General
+
+        This endpoint allows you to create or update an order in AOS by submitting a Cargowise UniversalShipment XML document.
+        
+
+        The request body must contain the binary content of a valid Cargowise `UniversalShipment` or `UniversalInterchange` XML document. The system will parse the XML, resolve the client, port, vessel, containers, and cargo, then create a new order or update an existing one based on the customer reference.
+        
+
+        Maximum request size is 15 MB.
+        
+        ## Customer Identifier
+
+        The URL for this endpoint includes an identifier which is specific to one customer, and the authenticated user must be authorised for that customer to make this request.
+
+
+        This identifier will be provided during setup, or can be found 
+        `TODO : Where should API users get user info from?`
+
+        ## eAdaptor Next Support
+        
+        This endpoint supports direct integration with Cargowise via `eAdaptor Next` HTTP messaging. Simply target this endpoint from the Cargowise system using basic authentication with your authorised login credentials, to automatically import orders into AOS.
+
+      operationId: importCargowiseUniversalShipment
+      security:
+        # THIS ENDPOINT SUPPORTS DIRECT BASIC AUTHENTICATION + NORMAL TOKEN AUTH
+        # THIS IS TO ENABLE DIRECT INTEGRATION WITH ONESTOP
+        - basic_auth: []
+        - token_auth: []
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          description: Your "CustomerId" UUID string. 
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/xml:
+            schema:
+              type: string
+              format: binary
+            example: |
+              <?xml version="1.0" encoding="utf-8"?>
+              <UniversalInterchange>
+                <Header>
+                  <SenderID>CUSTCODE</SenderID>
+                </Header>
+                <Body>
+                  <UniversalShipment>
+                    <Shipment>
+                      <!-- Cargowise UniversalShipment XML content -->
+                    </Shipment>
+                  </UniversalShipment>
+                </Body>
+              </UniversalInterchange>
+      responses:
+        '200':
+          description: Order was successfully created or updated
+          content:
+            application/json:
+              schema:
+                type: object
+              examples:
+                Success:
+                  summary: Successful import
+                  value: {}
+        '400':
+          description: Bad Request - XML is empty, malformed, or cannot be parsed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                EmptyBody:
+                  summary: Empty request body
+                  value: { Message: "Request body is empty. An XML document is required." }
+                InvalidXml:
+                  summary: XML cannot be parsed
+                  value: { Message: "The XML document could not be parsed as a valid Cargowise UniversalShipment." }
+                CustomerNotConfigured:
+                  summary: User has no customer link
+                  value: { Message: "Customer not configured for this account, please contact support." }
+        '403':
+          description: Forbidden - User does not have permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                Unauthorized:
+                  summary: Unauthorized Access
+                  value: { Message: "User is not authorized." }
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  Message:
+                    type: string
+                  RetryAfter:
+                    type: number
+              examples:
+                RateLimited:
+                  summary: Too many requests
+                  value: { Message: "Rate limit exceeded. Maximum 30 requests per 60 seconds.", RetryAfter: 60 }
+        '500':
+          description: Internal Server Error
   /container/details:
     get:
       tags:
